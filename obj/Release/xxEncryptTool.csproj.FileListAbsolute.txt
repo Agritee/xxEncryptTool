@@ -1,0 +1,9 @@
+C:\Users\cndy1\source\repos\xxEncryptTool\bin\Release\xxEncryptTool.exe
+C:\Users\cndy1\source\repos\xxEncryptTool\bin\Release\xxEncryptTool.pdb
+C:\Users\cndy1\source\repos\xxEncryptTool\obj\Release\xxEncryptTool.csprojAssemblyReference.cache
+C:\Users\cndy1\source\repos\xxEncryptTool\obj\Release\xxEncryptTool.Form1.resources
+C:\Users\cndy1\source\repos\xxEncryptTool\obj\Release\xxEncryptTool.Properties.Resources.resources
+C:\Users\cndy1\source\repos\xxEncryptTool\obj\Release\xxEncryptTool.csproj.GenerateResource.cache
+C:\Users\cndy1\source\repos\xxEncryptTool\obj\Release\xxEncryptTool.csproj.CoreCompileInputs.cache
+C:\Users\cndy1\source\repos\xxEncryptTool\obj\Release\xxEncryptTool.exe
+C:\Users\cndy1\source\repos\xxEncryptTool\obj\Release\xxEncryptTool.pdb
