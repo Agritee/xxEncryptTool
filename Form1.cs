@@ -112,7 +112,7 @@ namespace xxEncryptTool
         {
             foreach (string s in filePaths)
             {
-                if (s== null)
+                if (s == null)
                 {
                     break;
                 }
@@ -179,7 +179,7 @@ namespace xxEncryptTool
                         File.Delete(Path.GetFullPath(s));
                         richTextBoxEncryptFile.AppendText("备份成功\r\n");
                     }
-                    catch(Exception)
+                    catch (Exception)
                     {
                         richTextBoxEncryptFile.AppendText("备份失败\r\n");
                     }
@@ -238,9 +238,33 @@ namespace xxEncryptTool
             }
         }
 
+        public static void deleteEncFile(string dir)
+        {
+            if (Directory.Exists(dir)) //如果存在这个文件夹删除之 
+            {
+                foreach (string d in Directory.GetFileSystemEntries(dir))
+                {
+                    if (File.Exists(d))
+                    {
+                        if (d.IndexOf("_.lua") != -1)
+                        {
+                            Console.WriteLine(d);
+                            File.Delete(d); //直接删除其中的文件       
+                        }
+                       
+                    }
+                    else
+                    {
+                        Console.WriteLine(d);
+                        deleteEncFile(d); //递归删除子文件夹 }
+                    }
+                }
+            }
+        }
+
         private void ButtonRecover_Click(object sender, EventArgs e)
         {
- 
+
             string bakDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\xspBackup\\";
             FolderBrowserDialog dialog = new FolderBrowserDialog();
             dialog.SelectedPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\xspBackup\\";
@@ -266,6 +290,7 @@ namespace xxEncryptTool
             CopyDirectory(selectPath, dstPath);
 
             deleteDirFiles(selectPath);
+            deleteEncFile(dstPath);
 
             MessageBox.Show("还原成功！");
         }
