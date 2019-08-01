@@ -196,7 +196,7 @@ namespace xxEncryptTool
                     }
 
                     string encryptedStr = Convert.ToBase64String(bsrc);
-                    encryptedStr = "loadstring(\"" + encryptedStr + "\")";
+                    encryptedStr = "loadstring(decode(\"" + encryptedStr + "\"))";
                     byte[] encryptedByte = Encoding.UTF8.GetBytes(encryptedStr);  
 
                     FileStream fsdst = new FileStream(Path.GetFullPath(s), FileMode.Truncate);
