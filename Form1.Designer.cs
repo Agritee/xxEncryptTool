@@ -158,7 +158,7 @@
             this.Controls.Add(this.buttonLoadFile);
             this.Controls.Add(this.richTextBoxLoadFile);
             this.Name = "Form1";
-            this.Text = "XX ENCRYPT TOOL";
+            this.Text = "XX ENCRYPT TOOL   by cndy1860";
             this.ResumeLayout(false);
             this.PerformLayout();
 

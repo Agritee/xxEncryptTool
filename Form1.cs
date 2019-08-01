@@ -15,11 +15,11 @@ namespace xxEncryptTool
         public Form1()
         {
             InitializeComponent();
-            labelTips0.Text = "1.确保电脑上已经安装好lua5.1(叉叉仅支持5.1)，加密前建议手动备份";
-            labelTips1.Text = "2.先选择需要加密的文件(*.lua)，点击加密即可生成加密文件(*_.lua)";
-            labelTips2.Text = "3.对于加密后的源文件*.lua，均移动到'我的文档/xspBackup'目录下作备份，原目录只保留加密后的*_.lua";
-            labelTips3.Text = @"4.在main.lua首行reqiure encrypt，加密过的文件，使用encrequire代替require即可";
-            labelTips4.Text = "5.还原备份功能会将'我的文档/xspBackup'中的文件移动至项目文件夹";
+            labelTips0.Text = "1.确保电脑上已经安装好lua5.1(叉叉仅支持5.1)";
+            labelTips1.Text = "2.加密时，程序会先把所有选择的源文件备份至'我的文档/xspBackup'目录下，但依然建议手动备份";
+            labelTips2.Text = "3.拷贝encrypt.lua至源文件所在目录，在main.lua首行reqiure encrypt即可";
+            labelTips3.Text = "4.还原备份功能会将'我的文档/xspBackup'中对应的文件移动至选择的项目文件夹";
+            labelTips4.Text = "5.本程序默认不支持中文变量名，需要的请至Github下载源码自行添加中文转码";
         }
 
         public string[] filePaths = new string[1024];
@@ -108,6 +108,18 @@ namespace xxEncryptTool
             }
         }
 
+        private string formatFixLenStr(string s)
+        {
+            string tmp = s;
+            if (s.Length <= 20){
+                for (int i = 0; i < 25 - s.Length; i++){
+                    tmp += " ";
+                }
+            }
+
+            return tmp;
+        }
+
         private void ButtonEncrypt_Click(object sender, EventArgs e)
         {
             foreach (string s in filePaths)
@@ -117,9 +129,50 @@ namespace xxEncryptTool
                     break;
                 }
 
+                System.IO.StreamReader srcfile = new System.IO.StreamReader(s);
+                string firstLine = srcfile.ReadLine();
+                Console.WriteLine(firstLine);
+                if (firstLine.IndexOf("loadstring") == 0)
+                {
+                    richTextBoxEncryptFile.AppendText(formatFixLenStr(Path.GetFileName(s)) + "放弃加密  源文件是加密文件\r\n");
+                    continue;
+                }
+                srcfile.Close();
+
                 string cmd = "luac -o " + Path.GetFullPath(s + ".tmp") + " " + Path.GetFullPath(s);
                 executeCmd(cmd);
 
+                if (!File.Exists(Path.GetFullPath(s + ".tmp"))){
+                    DialogResult dr = MessageBox.Show("未找到中间文件:" + Path.GetFullPath(s + ".tmp") + "，请确保安装好lua5.1！", "加密源文件");
+                    break;
+                }
+
+                //备份源文件
+                string bakRootDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\xspBackup\\";
+                string currentSubDir = Path.GetDirectoryName(s).Substring(Path.GetDirectoryName(s).LastIndexOf("xspworkspace\\") + 13) + "\\";
+                Console.WriteLine(bakRootDir + currentSubDir);
+                if (!Directory.Exists(bakRootDir + currentSubDir))
+                {
+                    Directory.CreateDirectory(bakRootDir + currentSubDir);
+                }
+                if (!Directory.Exists(bakRootDir + "static_backup\\" + currentSubDir))      //静态备份，不受恢复备份影响
+                {
+                    Directory.CreateDirectory(bakRootDir + "static_backup\\" + currentSubDir);
+                }
+
+                try
+                {
+                    File.Copy(Path.GetFullPath(s), bakRootDir + "static_backup\\" + currentSubDir + Path.GetFileName(s), true);
+                    File.Copy(Path.GetFullPath(s), bakRootDir + currentSubDir + Path.GetFileName(s), true);
+                    richTextBoxEncryptFile.AppendText(formatFixLenStr(Path.GetFileName(s)) + "备份成功  ");
+                }
+                catch (Exception)
+                {
+                    richTextBoxEncryptFile.AppendText(formatFixLenStr(Path.GetFileName(s)) + "备份失败  放弃加密\r\n");
+                    continue;
+                }
+
+                //将中间文件重写至原源文件
                 try
                 {
                     FileStream fssrc = new FileStream(Path.GetFullPath(s + ".tmp"), FileMode.Open);
@@ -143,12 +196,10 @@ namespace xxEncryptTool
                     }
 
                     string encryptedStr = Convert.ToBase64String(bsrc);
-                    encryptedStr = "return \"" + encryptedStr + "\"";
-                    byte[] encryptedByte = Encoding.UTF8.GetBytes(encryptedStr);
+                    encryptedStr = "loadstring(\"" + encryptedStr + "\")";
+                    byte[] encryptedByte = Encoding.UTF8.GetBytes(encryptedStr);  
 
-                    string path = Path.GetDirectoryName(s) + "\\" + Path.GetFileNameWithoutExtension(s) + "_" + Path.GetExtension(s);
-
-                    FileStream fsdst = new FileStream(path, FileMode.Create);
+                    FileStream fsdst = new FileStream(Path.GetFullPath(s), FileMode.Truncate);
                     BinaryWriter bwdst = new BinaryWriter(fsdst);
 
                     bwdst.Write(encryptedByte);
@@ -158,36 +209,19 @@ namespace xxEncryptTool
                     brsrc.Close();
                     fssrc.Close();
 
-                    richTextBoxEncryptFile.AppendText(Path.GetFileName(s) + "    加密成功  ");
-
-                    string bakRootDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\xspBackup\\";
-                    string currentSubDir = Path.GetDirectoryName(s).Substring(Path.GetDirectoryName(s).LastIndexOf("xspworkspace\\") + 13) + "\\";
-                    Console.WriteLine(bakRootDir + currentSubDir);
-                    if (!Directory.Exists(bakRootDir + currentSubDir))
-                    {
-                        Directory.CreateDirectory(bakRootDir + currentSubDir);
-                    }
-                    if (!Directory.Exists(bakRootDir + "static_backup\\" + currentSubDir))
-                    {
-                        Directory.CreateDirectory(bakRootDir + "static_backup\\" + currentSubDir);
-                    }
-
-                    try
-                    {
-                        File.Copy(Path.GetFullPath(s), bakRootDir + "static_backup\\" + currentSubDir + Path.GetFileName(s), true);
-                        File.Copy(Path.GetFullPath(s), bakRootDir + currentSubDir + Path.GetFileName(s), true);
-                        File.Delete(Path.GetFullPath(s));
-                        richTextBoxEncryptFile.AppendText("备份成功\r\n");
-                    }
-                    catch (Exception)
-                    {
-                        richTextBoxEncryptFile.AppendText("备份失败\r\n");
-                    }
+                    richTextBoxEncryptFile.AppendText("加密成功\r\n");
                 }
                 catch (FileNotFoundException)
                 {
-                    DialogResult dr = MessageBox.Show("未找到中间文件，请确保安装好lua5.1！", "加密原文件");
-                    richTextBoxEncryptFile.AppendText(Path.GetFileName(s) + "备份失败\r\n");
+                    DialogResult dr = MessageBox.Show("加密中间文件:" + Path.GetFullPath(s + ".tmp") + "失败！", "加密异常");
+                    richTextBoxEncryptFile.AppendText("加密失败\r\n");
+                    continue;
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    DialogResult dr = MessageBox.Show("加密中间文件:" + Path.GetFullPath(s + ".tmp") + "失败！", "加密异常");
+                    richTextBoxEncryptFile.AppendText("加密失败\r\n");
+                    continue;
                 }
                 finally
                 {
@@ -220,20 +254,21 @@ namespace xxEncryptTool
         //删除目录下的所有文件及文件夹
         private static void deleteDirFiles(string strPath)
         {
+            //删除这个目录下的所有文件
+            if (Directory.GetFiles(strPath).Length > 0)
+            {
+                foreach (string var in Directory.GetFiles(strPath))
+                {
+                    File.Delete(var);
+                }
+            }
+
             //删除这个目录下的所有子目录
             if (Directory.GetDirectories(strPath).Length > 0)
             {
                 foreach (string var in Directory.GetDirectories(strPath))
                 {
                     Directory.Delete(var, true);
-                }
-            }
-            //删除这个目录下的所有文件
-            if (Directory.GetFiles(strPath).Length > 0)
-            {
-                foreach (string var in Directory.GetFiles(strPath))
-                {
-                    File.Delete(var);
                 }
             }
         }
