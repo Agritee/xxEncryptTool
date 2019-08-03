@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
-using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using System.IO;
+using LuaInterface;
 
 namespace xxEncryptTool
 {
@@ -62,6 +62,36 @@ namespace xxEncryptTool
 
             Console.WriteLine(output);
 
+            return true;
+        }
+
+        private bool minify_file(string inputFileName)
+        {
+            if (!File.Exists(inputFileName)){
+                return false;
+            }
+            try
+            {
+                Lua lua = new Lua();
+                lua.DoFile("minify\\llex.lua");
+                lua.DoFile("minify\\lparser.lua");
+                lua.DoFile("minify\\optlex.lua");
+                lua.DoFile("minify\\optparser.lua");
+                lua.DoFile("minify\\squish.minify.lua");
+                LuaFunction luaFunctionMinify = lua.GetFunction("minify_file");
+                string miniFileName = Path.GetDirectoryName(inputFileName) + "\\" +Path.GetFileNameWithoutExtension(inputFileName) + ".mini" + Path.GetExtension(inputFileName);
+                Console.WriteLine("write nimify file: " + miniFileName);
+                luaFunctionMinify.Call(inputFileName, miniFileName);
+                if (!File.Exists(miniFileName))
+                {
+                    return false;
+                }
+                lua.Close();
+            }
+            catch (Exception)
+            {
+                return false;
+            }
             return true;
         }
 
@@ -129,23 +159,18 @@ namespace xxEncryptTool
                     break;
                 }
 
+                //检验源文件
                 System.IO.StreamReader srcfile = new System.IO.StreamReader(s);
                 string firstLine = srcfile.ReadLine();
                 Console.WriteLine(firstLine);
                 if (firstLine.IndexOf("loadstring") == 0)
                 {
                     richTextBoxEncryptFile.AppendText(formatFixLenStr(Path.GetFileName(s)) + "放弃加密  源文件是加密文件\r\n");
+                    srcfile.Close();
                     continue;
                 }
                 srcfile.Close();
 
-                string cmd = "luac -o " + Path.GetFullPath(s + ".tmp") + " " + Path.GetFullPath(s);
-                executeCmd(cmd);
-
-                if (!File.Exists(Path.GetFullPath(s + ".tmp"))){
-                    DialogResult dr = MessageBox.Show("未找到中间文件:" + Path.GetFullPath(s + ".tmp") + "，请确保安装好lua5.1！", "加密源文件");
-                    break;
-                }
 
                 //备份源文件
                 string bakRootDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\xspBackup\\";
@@ -172,10 +197,32 @@ namespace xxEncryptTool
                     continue;
                 }
 
+                //压缩源文件
+                if (!minify_file(s))
+                {
+                    richTextBoxEncryptFile.AppendText("压缩失败  放弃加密\r\n");
+                    continue;
+                }
+                else
+                {
+                    richTextBoxEncryptFile.AppendText("压缩成功  ");
+                }
+
+                //编译byte code
+                string miniFileName = Path.GetDirectoryName(s) + "\\" + Path.GetFileNameWithoutExtension(s) + ".mini" + Path.GetExtension(s);
+                string cmd = "luac -o " + Path.GetFullPath(miniFileName + ".tmp") + " " + miniFileName;
+                executeCmd(cmd);
+
+                if (!File.Exists(Path.GetFullPath(miniFileName + ".tmp")))
+                {
+                    DialogResult dr = MessageBox.Show("未找到中间文件:" + Path.GetFullPath(miniFileName + ".tmp") + "，请确保安装好lua5.1！", "加密源文件");
+                    break;
+                }
+
                 //将中间文件重写至原源文件
                 try
                 {
-                    FileStream fssrc = new FileStream(Path.GetFullPath(s + ".tmp"), FileMode.Open);
+                    FileStream fssrc = new FileStream(Path.GetFullPath(miniFileName + ".tmp"), FileMode.Open);
                     BinaryReader brsrc = new BinaryReader(fssrc);
 
                     byte[] bsrc = new byte[fssrc.Length + 8];
@@ -225,9 +272,15 @@ namespace xxEncryptTool
                 }
                 finally
                 {
-                    if (File.Exists(Path.GetFullPath(s + ".tmp")))
+                    string mFileName = Path.GetDirectoryName(s) + "\\" + Path.GetFileNameWithoutExtension(s) + ".mini" + Path.GetExtension(s);
+                    if (File.Exists(Path.GetFullPath(mFileName + ".tmp")))
                     {
-                        File.Delete(Path.GetFullPath(s + ".tmp"));
+                        File.Delete(Path.GetFullPath(mFileName + ".tmp"));
+                    }
+             
+                    if (File.Exists(mFileName))
+                    {
+                        File.Delete(mFileName);
                     }
                 }
             }
